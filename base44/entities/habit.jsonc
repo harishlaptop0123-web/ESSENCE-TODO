@@ -1,0 +1,39 @@
+{
+  "name": "Habit",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "frequency": {
+      "type": "string",
+      "enum": [
+        "daily",
+        "weekly"
+      ],
+      "default": "daily"
+    },
+    "color": {
+      "type": "string",
+      "default": "#6366f1"
+    },
+    "icon": {
+      "type": "string",
+      "default": "⭐"
+    },
+    "target_days": {
+      "type": "number",
+      "default": 21
+    },
+    "active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "name"
+  ]
+}
