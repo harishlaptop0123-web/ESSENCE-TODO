@@ -26,5 +26,9 @@ VITE_BASE44_APP_ID=cbef744a8545c389ef439ea6
 VITE_BASE44_APP_BASE_URL=https://my-to-do-list-81bfaad7.base44.app
 ```
 
+<<<<<<< HEAD
 Run the app: `npm run dev'
 
+=======
+Run the app: `npm run dev`
+>>>>>>> c78a97219cdd08d351fc98cd557c48931e4dec8e
