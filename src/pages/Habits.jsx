@@ -1,61 +1,56 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
-import { Plus, CheckCircle2, Circle, Trash2, Flame, X } from "lucide-react";
+import { Plus, CheckCircle2, Circle, Trash2, Flame, X, Loader2, BarChart3 } from "lucide-react";
 import { format, subDays } from "date-fns";
+import { Link } from "react-router-dom";
+import { useClarityData } from "@/hooks/useClarityData";
+import { getHabitStreak, isHabitCompletedOnDate } from "@/lib/tracker";
 
 const EMOJIS = ["⭐","🏃","💧","📚","🧘","🌿","💪","🎯","✍️","🎨"];
 
 export default function Habits() {
   const { currentUser } = useAuth();
-  const [habits, setHabits] = useState([]);
-  const [logs, setLogs] = useState([]);
+  const { tracker, isLoading, refetch } = useClarityData(currentUser);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: "", description: "", icon: "⭐", frequency: "daily" });
-  const today = format(new Date(), "yyyy-MM-dd");
   const last7 = Array.from({ length: 7 }, (_, i) => format(subDays(new Date(), 6 - i), "yyyy-MM-dd"));
-
-  useEffect(() => {
-    base44.entities.Habit.filter({ created_by: currentUser?.email, active: true }).then(setHabits);
-    base44.entities.HabitLog.filter({ created_by: currentUser?.email }).then(setLogs);
-  }, []);
+  const habits = tracker.habits;
+  const logs = tracker.logs;
+  const today = tracker.today;
 
   const toggleHabit = async (habit) => {
     const existingLog = logs.find(l => l.habit_id === habit.id && l.date === today);
     if (existingLog) {
       await base44.entities.HabitLog.delete(existingLog.id);
-      setLogs(prev => prev.filter(l => l.id !== existingLog.id));
     } else {
-      const newLog = await base44.entities.HabitLog.create({ habit_id: habit.id, date: today, completed: true });
-      setLogs(prev => [...prev, newLog]);
+      await base44.entities.HabitLog.create({ habit_id: habit.id, date: today, completed: true });
     }
+    refetch();
   };
 
   const addHabit = async () => {
     if (!form.name.trim()) return;
-    const newHabit = await base44.entities.Habit.create({ ...form, active: true });
-    setHabits(prev => [...prev, newHabit]);
+    await base44.entities.Habit.create({ ...form, active: true });
     setForm({ name: "", description: "", icon: "⭐", frequency: "daily" });
     setShowForm(false);
+    refetch();
   };
 
   const deleteHabit = async (id) => {
     await base44.entities.Habit.update(id, { active: false });
-    setHabits(prev => prev.filter(h => h.id !== id));
+    refetch();
   };
 
-  const isCompletedOnDate = (habitId, date) => logs.some(l => l.habit_id === habitId && l.date === date && l.completed);
-  const getStreak = (habit) => {
-    let streak = 0;
-    for (let i = 0; i < 30; i++) {
-      const d = format(subDays(new Date(), i), "yyyy-MM-dd");
-      if (isCompletedOnDate(habit.id, d)) streak++;
-      else break;
-    }
-    return streak;
-  };
+  const completedToday = tracker.todayCompletedHabits;
 
-  const completedToday = habits.filter(h => isCompletedOnDate(h.id, today)).length;
+  if (isLoading) {
+    return (
+      <div className="p-8 max-w-3xl mx-auto min-h-[60vh] flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 max-w-3xl mx-auto animate-fade-in">
@@ -64,12 +59,20 @@ export default function Habits() {
           <h1 className="font-playfair text-3xl text-foreground">Habits</h1>
           <p className="text-sm text-muted-foreground mt-1">{completedToday} of {habits.length} done today</p>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-xl text-sm font-medium hover:opacity-90 transition-all"
-        >
-          <Plus size={16} /> New habit
-        </button>
+        <div className="flex items-center gap-3">
+          <Link
+            to="/tracker"
+            className="flex items-center gap-2 border border-border bg-card px-4 py-2 rounded-xl text-sm font-medium hover:bg-muted transition-all"
+          >
+            <BarChart3 size={16} /> Open tracker
+          </Link>
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-xl text-sm font-medium hover:opacity-90 transition-all"
+          >
+            <Plus size={16} /> New habit
+          </button>
+        </div>
       </div>
 
       {/* Add form modal */}
@@ -143,8 +146,8 @@ export default function Habits() {
       ) : (
         <div className="space-y-3">
           {habits.map(habit => {
-            const doneToday = isCompletedOnDate(habit.id, today);
-            const streak = getStreak(habit);
+            const doneToday = isHabitCompletedOnDate(logs, habit.id, today);
+            const streak = getHabitStreak(logs, habit.id);
             return (
               <div key={habit.id} className="group bg-card border border-border rounded-xl px-4 py-3.5 flex items-center gap-4 hover:shadow-sm transition-all">
                 <button onClick={() => toggleHabit(habit)} className="flex-shrink-0">
@@ -167,9 +170,9 @@ export default function Habits() {
                 <div className="flex gap-1">
                   {last7.map(d => (
                     <div key={d} className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs transition-all ${
-                      isCompletedOnDate(habit.id, d) ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                      isHabitCompletedOnDate(logs, habit.id, d) ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                     }`}>
-                      {isCompletedOnDate(habit.id, d) ? "✓" : "·"}
+                      {isHabitCompletedOnDate(logs, habit.id, d) ? "✓" : "·"}
                     </div>
                   ))}
                 </div>

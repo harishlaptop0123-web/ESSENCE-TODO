@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
-import { Plus, Circle, CheckCircle2, Trash2, ChevronDown } from "lucide-react";
-import { format } from "date-fns";
+import { Plus, Circle, CheckCircle2, Trash2, BarChart3 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useClarityData } from "@/hooks/useClarityData";
 
 const PRIORITIES = ["low", "medium", "high"];
 const PRIORITY_COLORS = {
@@ -13,33 +14,26 @@ const PRIORITY_COLORS = {
 
 export default function Todos() {
   const { currentUser } = useAuth();
-  const [todos, setTodos] = useState([]);
+  const { todos, tracker, isLoading, refetch } = useClarityData(currentUser);
   const [input, setInput] = useState("");
   const [priority, setPriority] = useState("medium");
   const [filter, setFilter] = useState("all");
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    base44.entities.Todo.filter({ created_by: currentUser?.email }, "-created_date")
-      .then(setTodos)
-      .finally(() => setLoading(false));
-  }, []);
 
   const addTodo = async () => {
     if (!input.trim()) return;
-    const newTodo = await base44.entities.Todo.create({ title: input.trim(), priority, completed: false });
-    setTodos(prev => [newTodo, ...prev]);
+    await base44.entities.Todo.create({ title: input.trim(), priority, completed: false });
     setInput("");
+    refetch();
   };
 
   const toggleTodo = async (todo) => {
-    const updated = await base44.entities.Todo.update(todo.id, { completed: !todo.completed });
-    setTodos(prev => prev.map(t => t.id === todo.id ? updated : t));
+    await base44.entities.Todo.update(todo.id, { completed: !todo.completed });
+    refetch();
   };
 
   const deleteTodo = async (id) => {
     await base44.entities.Todo.delete(id);
-    setTodos(prev => prev.filter(t => t.id !== id));
+    refetch();
   };
 
   const filtered = todos.filter(t => {
@@ -54,7 +48,9 @@ export default function Todos() {
     <div className="p-8 max-w-2xl mx-auto animate-fade-in">
       <div className="mb-8">
         <h1 className="font-playfair text-3xl text-foreground">Tasks</h1>
-        <p className="text-sm text-muted-foreground mt-1">{completedCount} of {todos.length} completed</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          {completedCount} of {todos.length} completed, {tracker.runningTasks} still running
+        </p>
       </div>
 
       {/* Add input */}
@@ -81,6 +77,20 @@ export default function Todos() {
         </button>
       </div>
 
+      <div className="mb-5 flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3">
+        <div>
+          <p className="text-sm font-medium text-foreground">Tracker is connected</p>
+          <p className="text-xs text-muted-foreground">Task completion now updates the tracker and dashboard automatically.</p>
+        </div>
+        <Link
+          to="/tracker"
+          className="inline-flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm font-medium hover:bg-accent transition-all"
+        >
+          <BarChart3 size={16} />
+          Open tracker
+        </Link>
+      </div>
+
       {/* Filter tabs */}
       <div className="flex gap-1 mb-5 bg-muted rounded-xl p-1 w-fit">
         {["all", "active", "done"].map(f => (
@@ -95,7 +105,7 @@ export default function Todos() {
       </div>
 
       {/* Todo list */}
-      {loading ? (
+      {isLoading ? (
         <div className="text-center py-12 text-muted-foreground text-sm">Loading...</div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground text-sm">No tasks here. Add one above!</div>

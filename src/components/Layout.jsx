@@ -1,13 +1,14 @@
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { Outlet, NavLink } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
-import { LayoutDashboard, CheckSquare, BookOpen, Flame, Sparkles, LogOut, User } from "lucide-react";
+import { LayoutDashboard, CheckSquare, BookOpen, Flame, Sparkles, LogOut, User, ChartColumn } from "lucide-react";
 import { useState } from "react";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/todos", icon: CheckSquare, label: "Tasks" },
   { to: "/habits", icon: Flame, label: "Habits" },
+  { to: "/tracker", icon: ChartColumn, label: "Tracker" },
   { to: "/notes", icon: BookOpen, label: "Notes" },
   { to: "/mentor", icon: Sparkles, label: "Mentor" },
 ];

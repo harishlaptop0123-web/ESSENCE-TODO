@@ -11,6 +11,7 @@ import Todos from './pages/Todos';
 import Habits from './pages/Habits';
 import Notes from './pages/Notes';
 import Mentor from './pages/Mentor';
+import Tracker from './pages/Tracker';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -42,6 +43,7 @@ const AuthenticatedApp = () => {
         <Route path="/" element={<Dashboard />} />
         <Route path="/todos" element={<Todos />} />
         <Route path="/habits" element={<Habits />} />
+        <Route path="/tracker" element={<Tracker />} />
         <Route path="/notes" element={<Notes />} />
         <Route path="/mentor" element={<Mentor />} />
         <Route path="*" element={<PageNotFound />} />

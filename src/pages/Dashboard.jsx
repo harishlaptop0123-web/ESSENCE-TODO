@@ -1,37 +1,29 @@
-import { useEffect, useState } from "react";
-import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { Link } from "react-router-dom";
-import { CheckSquare, Flame, BookOpen, TrendingUp, Circle, CheckCircle2 } from "lucide-react";
+import { CheckSquare, Flame, BookOpen, TrendingUp, Circle, CheckCircle2, Loader2, ChartColumn } from "lucide-react";
 import { format } from "date-fns";
+import { useClarityData } from "@/hooks/useClarityData";
 
 export default function Dashboard() {
   const { currentUser } = useAuth();
-  const [todos, setTodos] = useState([]);
-  const [habits, setHabits] = useState([]);
-  const [habitLogs, setHabitLogs] = useState([]);
-  const [notes, setNotes] = useState([]);
-  const today = format(new Date(), "yyyy-MM-dd");
+  const { tracker, isLoading } = useClarityData(currentUser);
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const pendingTodos = tracker.pendingTodos;
 
-  useEffect(() => {
-    base44.entities.Todo.filter({ created_by: currentUser?.email }).then(setTodos);
-    base44.entities.Habit.filter({ created_by: currentUser?.email, active: true }).then(setHabits);
-    base44.entities.HabitLog.filter({ date: today, created_by: currentUser?.email }).then(setHabitLogs);
-    base44.entities.Note.filter({ created_by: currentUser?.email }).then(setNotes);
-  }, []);
-
-  const pendingTodos = todos.filter(t => !t.completed);
-  const completedToday = todos.filter(t => t.completed).length;
-  const habitsCompletedToday = habitLogs.filter(l => l.completed).length;
-  const habitRate = habits.length > 0 ? Math.round((habitsCompletedToday / habits.length) * 100) : 0;
+  if (isLoading) {
+    return (
+      <div className="p-8 max-w-4xl mx-auto min-h-[60vh] flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   const stats = [
     { label: "Pending Tasks", value: pendingTodos.length, icon: CheckSquare, color: "text-violet-500", bg: "bg-violet-50", link: "/todos" },
-    { label: "Active Habits", value: habits.length, icon: Flame, color: "text-orange-500", bg: "bg-orange-50", link: "/habits" },
-    { label: "Today's Progress", value: `${habitRate}%`, icon: TrendingUp, color: "text-emerald-500", bg: "bg-emerald-50", link: "/habits" },
-    { label: "Notes", value: notes.length, icon: BookOpen, color: "text-sky-500", bg: "bg-sky-50", link: "/notes" },
+    { label: "Active Habits", value: tracker.habits.length, icon: Flame, color: "text-orange-500", bg: "bg-orange-50", link: "/habits" },
+    { label: "Today's Progress", value: `${tracker.completionRate}%`, icon: TrendingUp, color: "text-emerald-500", bg: "bg-emerald-50", link: "/tracker" },
+    { label: "Notes", value: tracker.notesCount, icon: BookOpen, color: "text-sky-500", bg: "bg-sky-50", link: "/notes" },
   ];
 
   return (
@@ -69,12 +61,12 @@ export default function Dashboard() {
             <h2 className="text-sm font-semibold text-foreground">Today's Habits</h2>
             <Link to="/habits" className="text-xs text-primary hover:underline">View all</Link>
           </div>
-          {habits.length === 0 ? (
+          {tracker.habits.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4 text-center">No habits yet. <Link to="/habits" className="text-primary hover:underline">Add one →</Link></p>
           ) : (
             <div className="space-y-2">
-              {habits.slice(0, 5).map(habit => {
-                const done = habitLogs.some(l => l.habit_id === habit.id && l.completed);
+              {tracker.habits.slice(0, 5).map(habit => {
+                const done = tracker.logs.some(l => l.habit_id === habit.id && l.date === tracker.today && l.completed);
                 return (
                   <div key={habit.id} className="flex items-center gap-3 py-1.5">
                     <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${done ? "border-emerald-400 bg-emerald-400" : "border-border"}`}>
@@ -95,7 +87,7 @@ export default function Dashboard() {
         <div className="bg-card border border-border rounded-xl p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-foreground">Upcoming Tasks</h2>
-            <Link to="/todos" className="text-xs text-primary hover:underline">View all</Link>
+            <Link to="/tracker" className="text-xs text-primary hover:underline">Open tracker</Link>
           </div>
           {pendingTodos.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4 text-center">All done! 🎉</p>
@@ -113,6 +105,22 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+      </div>
+
+      <div className="mt-6 bg-card border border-border rounded-xl p-6 flex items-center justify-between gap-4">
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">Connected progress tracking</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Your habits, tasks, and streaks now feed the tracker page automatically.
+          </p>
+        </div>
+        <Link
+          to="/tracker"
+          className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-xl text-sm font-medium hover:opacity-90 transition-all"
+        >
+          <ChartColumn size={16} />
+          View Tracker
+        </Link>
       </div>
     </div>
   );
